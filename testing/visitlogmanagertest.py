@@ -1,10 +1,10 @@
-from src import VisitLogManager
+from src import visit_log_manager
 
 if __name__ == "__main__":
 
-    def do_all(filename):
-        VisitLogObject = VisitLogManager.Log2Blacklist()
-        VisitLogObject.read_apache_log(filename)
-        print(VisitLogObject.check_frequencies())
+    def test_visit_log_manager(filename):
+        visit_log_object = visit_log_manager.Log2Blacklist()
+        visit_log_object.read_apache_log(filename)
+        print(visit_log_object.check_frequencies())
 
-    do_all("digipart-custom.log-20240407.gz")
+    test_visit_log_manager("digipart-custom.log-20240407.gz")

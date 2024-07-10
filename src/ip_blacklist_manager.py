@@ -6,8 +6,8 @@ def is_valid_ip(ip):
     ip_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
 
     if ip_pattern.match(ip):
-        parts = ip.split('.')
-        for part in parts:
+        ip_parts = ip.split('.')
+        for part in ip_parts:
             if not 0 <= int(part) <= 255:
                 return False
         return True
@@ -102,7 +102,7 @@ class BlackListManager:
         print("line numbers in doc is " + str(self.valid_ip_count))
         print(f"{self.ips_in_ipset} ips are in this {self.ip_list_file}]")
 
-    def do_all(self):
+    def block_ips(self):
         self.create_iplist()
         self.add_ip_ipset()
         self.add_rule()
