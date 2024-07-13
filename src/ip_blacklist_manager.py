@@ -1,16 +1,14 @@
 import subprocess
 import re
+import logging
+
+IPLIST_NAME = 'dp_blacklist'
+IP_PATTERN = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
 
 
 def is_valid_ip(ip):
-    ip_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
-
-    if ip_pattern.match(ip):
-        ip_parts = ip.split('.')
-        for part in ip_parts:
-            if not 0 <= int(part) <= 255:
-                return False
-        return True
+    if IP_PATTERN.match(ip):
+        return all(0 <= int(part) <= 255 for part in ip.split('.'))
     return False
 
 
@@ -30,33 +28,43 @@ class BlackListManager:
         self.ip_list_file = ip_list_file
         self.valid_ip_count = 0
         self.ips_in_ipset = 0
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
 
     def list_exists(self):
-        result = subprocess.run(['sudo', 'ipset', 'list', self.iplist], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                text=True)
-        if "Name:" in result.stdout:
-            print(f"{self.iplist} already exists")
+        try:
+            result = subprocess.run(['sudo', 'ipset', 'list', self.iplist], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            exists = "Name:" in result.stdout
+            self.logger.info(f"{IPLIST_NAME} {'already exists' if exists else 'can be created'}")
+            return exists
+        except subprocess.CalledProcessError:
+            self.logger.error(f"Error checking if {IPLIST_NAME} exists")
             return False
-        else:
-            print("Set can be created")
-            return True
 
     def create_iplist(self):
-        if self.list_exists():
-            subprocess.run(['sudo', 'ipset', 'create', self.iplist, 'hash:ip'])
-            print(f"{self.iplist} has been created in the ipset")
+        if not self.list_exists():
+            try:
+                subprocess.run(['sudo', 'ipset', 'create', IPLIST_NAME, 'hash:ip'], check=True)
+                self.logger.info(f"{IPLIST_NAME} has been created in the ipset")
+            except subprocess.CalledProcessError:
+                self.logger.error(f"Error creating {IPLIST_NAME}")
         return
 
-    def add_ip_ipset(self):
-        first_result = subprocess.run(['sudo', 'ipset', 'list', self.iplist], stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE, text=True)
-        for line in first_result.stdout.splitlines():
-            if line.startswith('Number of entries:'):
-                num_entries = line.split(':')[1].strip()
-                print(f"{num_entries} ips are in this list initially")
-                break
+    def get_ipset_entries(self):
+        try:
+            result = subprocess.run(['sudo', 'ipset', 'list', self.iplist], capture_output=True, text=True, check=True)
+            for line in result.stdout.splitlines():
+                if line.startswith('Number of entries:'):
+                    return int(line.split(':')[1].strip())
+        except subprocess.CalledProcessError:
+            self.logger.error(f"Error getting entries for {self.iplist}")
+        return 0
 
-        with open(self.ip_list_file) as file:
+    def add_ip_ipset(self):
+        initial_entries = self.get_ipset_entries()
+        self.logger.info(f"{initial_entries} IPs are in this list initially")
+
+        with open(self.ip_list_file, 'r') as file:
             for ip in file:
                 stripped_ip = ip.strip()
                 if is_valid_ip(stripped_ip):
@@ -65,42 +73,45 @@ class BlackListManager:
                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                     if "is NOT in set" in result.stderr:
                         subprocess.run(['sudo', 'ipset', 'add', self.iplist.encode(), stripped_ip.encode()])
-                        print(f"{stripped_ip} added")
-                        break
+                        self.logger.info(f"{ip} added")
+                        return True
                     else:
-                        print(f"{stripped_ip} already in {self.iplist}")
-        last_result = subprocess.run(['sudo', 'ipset', 'list', self.iplist], stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, text=True)
-        for line in last_result.stdout.splitlines():
-            if line.startswith('Number of entries:'):
-                num_entries = line.split(':')[1].strip()
-                self.ips_in_ipset = int(num_entries)
-                break
+                        self.logger.info(f"{ip} already in {self.iplist}")
+        self.ips_in_ipset = self.get_ipset_entries()
+
+    def rule_exists(self):
+        try:
+            result = subprocess.run(['sudo', 'iptables', '-S'], capture_output=True, text=True, check=True)
+            for rule in result.stdout.splitlines():
+                if f"INPUT -m set --match-set {self.iplist} " in rule and "DROP" in rule:
+                    self.logger.info(f"{self.iplist} rule already exists")
+                    return True
+        except subprocess.CalledProcessError:
+            self.logger.error("Error checking iptables rules")
+        return False
 
     def add_rule(self):
-        list_name_encoded = self.iplist.encode()
-        result = subprocess.run(['sudo', 'iptables', '-S'], stdout=subprocess.PIPE, text=True)
-        rules = result.stdout.splitlines()
-        exists = False
-        for rule in rules:
-            if "INPUT -m set --match-set {} ".format(self.iplist) in rule and "DROP" in rule:
-                print(f"{self.iplist} already in")
-                exists = True
-        if not exists:
-            subprocess.run(
-                ['sudo', 'iptables', '-I', 'INPUT', '-m', 'set', '--match-set', list_name_encoded, 'src', '-j', 'DROP'])
-            print("added rule")
-            return
+        if not self.rule_exists():
+            try:
+                subprocess.run(
+                    ['sudo', 'iptables', '-I', 'INPUT', '-m', 'set', '--match-set', self.iplist.encode(), 'src', '-j', 'DROP'])
+                self.logger.info("Added rule")
+            except subprocess.CalledProcessError:
+                self.logger.error("Error adding iptables rule")
+
+    def display_iptables_rules(self) -> None:
+        try:
+            result = subprocess.run(['sudo', 'iptables', '-S'], capture_output=True, text=True, check=True)
+            relevant_rules = [rule for rule in result.stdout.splitlines() if f"match-set {self.iplist} " in rule]
+            for rule in relevant_rules:
+                self.logger.info(rule)
+        except subprocess.CalledProcessError:
+            self.logger.error("Error displaying iptables rules")
 
     def display_results(self):
-        ip_rules_result = subprocess.run(['sudo', 'iptables', '-S'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                         text=True)
-        rules = ip_rules_result.stdout.splitlines()
-        for rule in rules:
-            if "match-set " + self.iplist + " " in rule:
-                print(rule)
-        print("line numbers in doc is " + str(self.valid_ip_count))
-        print(f"{self.ips_in_ipset} ips are in this {self.ip_list_file}]")
+        self.display_iptables_rules()
+        self.logger.info(f"Valid IP count in document: {self.valid_ip_count}")
+        self.logger.info(f"IPs in {self.iplist}: {self.ips_in_ipset}")
 
     def block_ips(self):
         self.create_iplist()
@@ -109,22 +120,3 @@ class BlackListManager:
         self.display_results()
 
 
-
-# if __name__ == "__main__":
-#     # test_is_valid_ip()
-#     parser = argparse.ArgumentParser(description='Run specific functions with parameters.')
-#     parser.add_argument('function', type=str, help='The function to call')
-#     parser.add_argument('params', nargs='*', help='The parameters to pass to the function')
-#     args = parser.parse_args()
-#
-#
-#     def block_ips(filename):
-#         obj1 = BlackListManager(filename)
-#         obj1.do_all()
-#
-#
-#     if args.function == 'block_ips':
-#         if len(args.params) != 1:
-#             print("block_ips requires 1 parameter")
-#         else:
-#             block_ips(args.params[0])
