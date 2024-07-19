@@ -1,4 +1,4 @@
-from src import ip_blacklist_manager
+from bot_blocker import ip_blacklist_manager
 import argparse
 
 

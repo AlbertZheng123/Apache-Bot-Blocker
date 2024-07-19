@@ -9,8 +9,8 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/your-repo",
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=find_packages(where="bot_blocker"),
+    package_dir={"": "bot_blocker"},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

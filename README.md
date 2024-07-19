@@ -9,7 +9,7 @@ IMPORTANT: This blocking method is NOT live. This program is NOT meant to be con
 
 DETAILS:
 
-NON THIRD PARTY: This project does not incorporate any external resources or tools besides simple python libraries. The bot blocker interacts directly with the firewall to block any malicious web-scraping bots through the usage of linux ip-rules commands.
+NON-THIRD PARTY: This project does not incorporate any external resources or tools besides built-in python libraries. The bot blocker interacts directly with the firewall to block any malicious web-scraping bots through the usage of linux ip-rules commands.
 
 RDS/FDS: This project utilizes both reverse DNS and forward DNS methods to combat against the potential of fake user-agent strings that point to reputable bots such as Google or Bing. Since 
 
@@ -32,6 +32,22 @@ Your apache log should be located on the linux server that your website is hoste
 
        python3 bad_bot_blocker.py 'apache_log' 
 
+4) Open the config.ini file. Copy your apache log file name and file path to the respective values under the 'LOG' header. For the log file pattern variable, please refer to the Regex pattern format of your apache log and paste it in the corresponding variable. If the variable is left blank, the program will use the default Regex file pattern
+
+5) To add or remove hostnames from the 'good bot list', open your config.ini file and add a new string for the specified good hostname within the list dictionary value. If the company you are defining as 'good' is not a dictionary key, add the key-value pair to the dictionary in the format below:
+
+       'company_name': ['hostname']
+
+6) To customize the bot frequency tests, open your config.ini file and add your preferred integer values to each parameter under '[BOT]'. For example, if you wanted the first test to be 30 visits in 1 minute, the variables would be the following:
+
+        first_time_interval = 60
+        first_frequency = 30
+
+WHITELIST/BLACKLIST: To use a custom IP whitelist or blacklist, please open and write to the 'whitelist' or 'blacklist' text file. Add your IPs by copying each IP on each line of the file. For example, here is what a typical whitelist file would look like:
+
+    8.8.8.8
+    8.8.4.4
+    192.128.2.1
 
 
 
