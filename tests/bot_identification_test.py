@@ -1,4 +1,4 @@
-from bot_blocker import bot_identifier
+from apache_bot_blocker import bot_identifier
 
 if __name__ == '__main__':
     timeout = 0.2

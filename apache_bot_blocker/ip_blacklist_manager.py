@@ -39,20 +39,20 @@ class BlackListManager:
         try:
             result = subprocess.run(['sudo', 'ipset', 'list', self.IPLIST_NAME], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             exists = "Name:" in result.stdout
-            self.logger.info(f"{IPLIST_NAME} {'already exists' if exists else 'can be created'}")
+            self.logger.info(f"{self.IPLIST_NAME} {'already exists' if exists else 'can be created'}")
             return exists
         except subprocess.CalledProcessError:
-            self.logger.error(f"Error checking if {IPLIST_NAME} exists")
+            self.logger.error(f"Error checking if {self.IPLIST_NAME} exists")
             return False
 
     def create_iplist(self) -> None:
         """Create the IP list in ipset if it doesn't exist."""
         if not self.list_exists():
             try:
-                subprocess.run(['sudo', 'ipset', 'create', IPLIST_NAME, 'hash:ip'], check=True)
-                self.logger.info(f"{IPLIST_NAME} has been created in the ipset")
+                subprocess.run(['sudo', 'ipset', 'create', self.IPLIST_NAME, 'hash:ip'], check=True)
+                self.logger.info(f"{self.IPLIST_NAME} has been created in the ipset")
             except subprocess.CalledProcessError:
-                self.logger.error(f"Error creating {IPLIST_NAME}")
+                self.logger.error(f"Error creating {self.IPLIST_NAME}")
         return
 
     def get_ipset_entries(self) -> int:
@@ -102,7 +102,7 @@ class BlackListManager:
         if not self.rule_exists():
             try:
                 subprocess.run(
-                    ['sudo', 'iptables', '-I', 'INPUT', '-m', 'set', '--match-set', self.IPLIST_NAME.encode(), 'bot_blocker', '-j', 'DROP'])
+                    ['sudo', 'iptables', '-I', 'INPUT', '-m', 'set', '--match-set', self.IPLIST_NAME.encode(), 'final_bot_blocker', '-j', 'DROP'])
                 self.logger.info("Added rule")
             except subprocess.CalledProcessError:
                 self.logger.error("Error adding iptables rule")

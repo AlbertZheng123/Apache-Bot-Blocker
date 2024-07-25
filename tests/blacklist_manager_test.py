@@ -1,4 +1,4 @@
-from bot_blocker import ip_blacklist_manager
+from apache_bot_blocker import ip_blacklist_manager
 import argparse
 
 
