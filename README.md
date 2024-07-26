@@ -1,5 +1,5 @@
 #Apache-Bot-Blocker
-Apache-Bot-Blocker is an open-source project that provides a secure and efficient bot-blocking firewall implementation for websites using any server log such as Apache HTTP server. This tool helps prevent malicious bot scraping, reducing system load, resource usage, and energy costs.
+Apache-Bot-Blocker is an open-source project that provides a secure and efficient bot-blocking firewall implementation for websites using any server log such as Apache or Nginx HTTP server. This tool helps prevent malicious bot scraping, reducing system load, resource usage, and energy costs.
 
 
 ##Features
@@ -30,11 +30,7 @@ The project utilizes both reverse DNS (RDS) and forward DNS (FDS) methods to com
 
 ##Installation:
 
-1) Navigate to your APACHE_LOG file directory in your linux server
-
-       cd /path/to/your/apache/log/directory
-
-2) Install the package using pip:
+1) Install the package using pip:
 
        pip install apache_bot_blocker
 
@@ -54,13 +50,14 @@ Editing the config.ini file
 
        nano /path/to/apache_bot_blocker/config.ini
 
-3. To edit your log file preferences, input your preferences as such below (example for LOG):
+3. To edit your web server log file (Nginx/Apache/other) preferences, input your preferences as such below:
 
-       log_file_name = digipart-custom.log-20240407.gz
-       log_file_path = /home/albert/apache_log
+       log_file_name = access_log
+       log_file_path = /etc/httpd/logs/
        log_file_format = (?P<ip>\d+\.\d+\.\d+\.\d+) - - \[(?P<timestamp>[^\]]+)\]
        timestamp_format = %%d/%%b/%%Y:%%H:%%M:%%S %%z
 
+   **Important**: The 'ip' and 'timestamp' fields are mandatory in the REGEX log file pattern, otherwise the code will fail.  
 
 ##Editing Whitelist and Blacklist
 
